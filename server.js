@@ -3,12 +3,13 @@ const cors = require("cors");
 const axios = require("axios");
 const querystring = require("querystring");
 const mongoose = require("mongoose");
-const session = require("express-session");
+const session = require("cookie-session");
 const jwt = require("jsonwebtoken");
 const usersRoute = require("./routes/routes");
 const _ = require("lodash");
 var bodyParser = require("body-parser");
 require("dotenv").config();
+var cookieParser = require("cookie-parser");
 
 const User = require("./models/UserModel");
 
@@ -26,17 +27,15 @@ const app = express();
 
 app.use(cors());
 app.options("*", cors());
+app.use(cookieParser());
 
 app.use(bodyParser.json());
 
 app.use(
   session({
-    name: "music-tastify:sess",
-    secret: "keyboard cat",
-    secure: false,
-    resave: false,
-    saveUninitialized: true,
-    cookie: { maxAge: 24 * 60 * 60 * 1000 },
+    name: "session",
+    keys: ["key1", "key2"],
+    maxAge: 10 * 60 * 1000,
   })
 );
 
@@ -59,13 +58,17 @@ app.get("/login", async (req, res) => {
   let origin = req.headers.referer;
   const redirect_to = req.query.redirect_to;
 
+  /* res.cookie("session_data", JSON.stringify(origin, redirect_to), {
+    maxAge: 5 * 60 * 1000,
+    signed: false,
+    httpOnly: false,
+  }); */
+
   console.log("Spotify auth begins");
   var scopes = "user-read-email user-top-read";
 
   req.session.redirect_to = redirect_to;
   req.session.frontend_URL = origin;
-  console.log("session redirect_to", req.session.redirect_to);
-  console.log("session frontend_URL", req.session.frontend_URL);
 
   if (redirect_to) {
     if (req.session.redirect_to && req.session.frontend_URL) {
@@ -102,9 +105,6 @@ app.get("/callback", async (req, res) => {
     client_id,
     client_secret,
   };
-  /* let origin = req.headers.referer;
-  const redirect_to = req.query.redirect_to;
-  console.log(origin, " - ", redirect_to); */
   try {
     const responseAccess = await axios.post(
       `https://accounts.spotify.com/api/token`,
@@ -238,8 +238,8 @@ app.get("/callback", async (req, res) => {
       }
     }
 
-    res.cookie(
-      "SESSION_MUSIC_TASTIFY1",
+    /* res.cookie(
+      "SESSION_MUSIC_TASTIFY",
       JSON.stringify({
         token: id,
       }),
@@ -248,21 +248,15 @@ app.get("/callback", async (req, res) => {
         signed: false,
         httpOnly: false,
       }
-    );
-
-    console.log("Frontend URL is:", req.session.frontend_URL);
-    console.log("Redirect path is:", req.session.redirect_to);
+    ); */
 
     if (req.session.redirect_to) {
-      console.log("Req Session redirect =", req.session.redirect_to);
       let url = `${req.session.frontend_URL}#/login?login_state=success&token=${id}&redirect_to=${req.session.redirect_to}`;
-      console.log(`redirect url is: ${url}`);
       res.redirect(url);
     } else
       res.redirect(
         `${req.session.frontend_URL}#/login?login_state=success&token=${id}`
       );
-    req.session = null;
   } catch (error) {
     console.log(error.message);
     res.send(400);
