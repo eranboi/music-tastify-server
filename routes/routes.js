@@ -1,13 +1,17 @@
 const express = require("express");
 const router = express.Router();
 const User = require("../models/UserModel");
+const _ = require("lodash");
 
 const auth = require("../middlewares/auth");
 const { findOneAndUpdate } = require("../models/UserModel");
 
 //Get own info with a token
 router.get("/me", auth, (req, res) => {
-  res.send(req.user);
+  let data = req.user;
+  _.omit(data, "matches");
+
+  res.send(data);
 });
 
 //Get another users profile
@@ -43,6 +47,12 @@ router.get("/match/:id", auth, async (req, res) => {
 
 router.get("/me/matches", auth, async (req, res) => {
   try {
+    req.user.matches.map((match) => {
+      delete match.artists_long_term;
+      delete match.artists_medium_term;
+      delete match.tracks_long_term;
+      delete match.tracks_medium_term;
+    });
     res.send(req.user.matches);
   } catch (error) {
     console.log(error.message);
